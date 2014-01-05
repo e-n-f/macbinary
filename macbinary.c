@@ -56,6 +56,13 @@ int process(FILE *f, char *fname) {
 	FILE *out = stdout;
 
 	if (named) {
+		char *cp;
+		for (cp = name; *cp; cp++) {
+			if (*cp == '/') {
+				*cp = ':';
+			}
+		}
+
 		out = fopen(name, "w");
 		if (out == NULL) {
 			fprintf(stderr, "Can't open %s to extract %s: %s\n",
