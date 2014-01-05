@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 int text = 0;
+int named = 0;
 
 unsigned int read32be(unsigned char *c) {
 	return (c[0] << 24) |
@@ -52,6 +53,17 @@ int process(FILE *f, char *fname) {
 
 	fprintf(stderr, "converting %s (%s/%s) %d bytes\n", name, type, creator, len);
 
+	FILE *out = stdout;
+
+	if (named) {
+		out = fopen(name, "w");
+		if (out == NULL) {
+			fprintf(stderr, "Can't open %s to extract %s: %s\n",
+			        name, fname, strerror(errno));
+			return EXIT_FAILURE;
+		}
+	}
+
 	int i;
 	for (i = 0; i < len; i++) {
 		int c = getc(f);
@@ -64,16 +76,21 @@ int process(FILE *f, char *fname) {
 			}
 		}
 
-		putc(c, stdout);
+		putc(c, out);
+	}
+
+	if (out != stdout) {
+		fclose(out);
 	}
 
 	return EXIT_SUCCESS;
 }
 
 void usage(char **argv) {
-	fprintf(stderr, "Usage: %s [-t] [file ...]\n", argv[0]);
+	fprintf(stderr, "Usage: %s [-tO] [file ...]\n", argv[0]);
 	fprintf(stderr, "\n");
 	fprintf(stderr, "-t: Swap \\r and \\n for TEXT type files\n");
+	fprintf(stderr, "-O: Write output to file named in archive, not standard output\n");
 }
 
 int main(int argc, char **argv) {
@@ -82,10 +99,14 @@ int main(int argc, char **argv) {
 	int i;
 	int success = EXIT_SUCCESS;
 
-	while ((i = getopt(argc, argv, "t")) != -1) {
+	while ((i = getopt(argc, argv, "tO")) != -1) {
 		switch (i) {
 		case 't':
 			text = 1;
+			break;
+
+		case 'O':
+			named = 1;
 			break;
 
 		default:
