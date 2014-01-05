@@ -4,6 +4,8 @@
 #include <errno.h>
 #include <unistd.h>
 
+int text = 0;
+
 unsigned int read32be(unsigned char *c) {
 	return (c[0] << 24) |
 	       (c[1] << 16) |
@@ -44,6 +46,8 @@ int process(FILE *f, char *fname) {
 	memcpy(type, header + 65, 4);
 	memcpy(creator, header + 69, 4);
 
+	int textual = text && (strcmp(type, "TEXT") == 0);
+
 	int len = read32be(header + 83);
 
 	fprintf(stderr, "converting %s (%s/%s) %d bytes\n", name, type, creator, len);
@@ -51,10 +55,25 @@ int process(FILE *f, char *fname) {
 	int i;
 	for (i = 0; i < len; i++) {
 		int c = getc(f);
+
+		if (textual) {
+			if (c == '\r') {
+				c = '\n';
+			} else if (c == '\n') {
+				c = '\r';
+			}
+		}
+
 		putc(c, stdout);
 	}
 
 	return EXIT_SUCCESS;
+}
+
+void usage(char **argv) {
+	fprintf(stderr, "Usage: %s [-t] [file ...]\n", argv[0]);
+	fprintf(stderr, "\n");
+	fprintf(stderr, "-t: Swap \\r and \\n for TEXT type files\n");
 }
 
 int main(int argc, char **argv) {
@@ -63,8 +82,16 @@ int main(int argc, char **argv) {
 	int i;
 	int success = EXIT_SUCCESS;
 
-	while ((i = getopt(argc, argv, "")) != -1) {
+	while ((i = getopt(argc, argv, "t")) != -1) {
+		switch (i) {
+		case 't':
+			text = 1;
+			break;
 
+		default:
+			usage(argv);
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	if (optind < argc) {
