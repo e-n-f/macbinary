@@ -3,6 +3,7 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 int text = 0;
 int named = 0;
@@ -50,6 +51,7 @@ int process(FILE *f, char *fname) {
 	int textual = text && (strcmp(type, "TEXT") == 0);
 
 	int len = read32be(header + 83);
+	int mtime = read32be(header + 91) - 2082844800;
 
 	fprintf(stderr, "converting %s (%s/%s) %d bytes\n", name, type, creator, len);
 
@@ -86,8 +88,22 @@ int process(FILE *f, char *fname) {
 		putc(c, out);
 	}
 
+	struct timeval times[2];
+	times[0].tv_sec = mtime;
+	times[0].tv_usec = 0;
+	times[1].tv_sec = mtime;
+	times[1].tv_usec = 0;
+
 	if (out != stdout) {
 		fclose(out);
+		if (utimes(name, times) != 0) {
+			perror("utimes");
+		}
+	} else {
+		fflush(stdout);
+		if (futimes(1, times) != 0) {
+			perror("futimes");
+		}
 	}
 
 	return EXIT_SUCCESS;
